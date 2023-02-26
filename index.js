@@ -1,26 +1,39 @@
 const Koa = require('koa');
-const { default: mongoose } = require('mongoose');
 const { connect, initSchemas } = require('./database/init');
-const app = new Koa()
+const R = require('ramda');
+const { resolve } = require('path')
+const MIDDLEWARES = ['router']
+
+const useMiddlewares = (app) => {
+    R.map(
+        R.compose(
+            R.forEachObjIndexed(
+                initWith => initWith(app)
+                // e => e(app)
+            ),
+            require,
+            name => resolve(__dirname, `./middlewares/${name}`)
+        )
+    )(MIDDLEWARES)
+}
+
 
 ;(async () => {
     await connect()
-    // initSchemas()
-
     // const Movie = mongoose.model('Movie')
     // const movies = await Movie.find({})
     // console.log(movies)
 
-    require('./tasks/movie')
-    // require('./tasks/api')
+    // require('./tasks/movie') 
+
+    const app = new Koa()
+    // const cors = require('koa-cors')
+    const cors = require('@koa/cors');
+
+    app.use(cors())
+
+    await useMiddlewares(app)
+
+    app.listen(4455)
 
 })()
-
-
-app.use(async (ctx, next) => {
-    ctx.body = '电影首页'
-})
-
-
-
-app.listen(4455)

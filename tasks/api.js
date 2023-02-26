@@ -35,7 +35,7 @@ async function fetchMovie (item) {
     ]
   }).exec()
 
-  for (let i = 0; i < [movies[0]].length; i++) {
+  for (let i = 0; i < movies.length; i++) {
     let movie = movies[i]
     let movieData = await fetchMovie(movie)
 
@@ -89,5 +89,11 @@ async function fetchMovie (item) {
     }
   }
 })()
+
+
+
+
+
+
 
 
