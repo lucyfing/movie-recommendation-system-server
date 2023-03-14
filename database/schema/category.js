@@ -4,11 +4,11 @@ const Schema = mongoose.Schema
 const {ObjectId, Mixed} = Schema.Types
 
 const categorySchema = new mongoose.Schema({
-  name: {
+  name: { // 类型名字
     unique: true,
     type: String
   },
-  movies: [{
+  movies: [{ // 关联电影
     type: ObjectId,
     ref: 'Movie'
   }],
@@ -34,6 +34,5 @@ categorySchema.pre('save', function (next) {
   next()
 })
 
-// mongoose.model('Category', categorySchema)
 exports.categorySchema = categorySchema
 

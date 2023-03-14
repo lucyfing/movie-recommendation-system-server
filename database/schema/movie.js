@@ -8,30 +8,26 @@ const MovieSchema = new mongoose.Schema({
     unique: true,
     type: String
   },
-
   category: [{
     type: ObjectId,
     ref: 'Category'
   }],
 
-  rate: Number,
-  title: String,
-  summary: String,
-  video: String,
-  cover: String,
-  poster: String,
-
+  rate: Number, //电影评分
+  name: String, // 电影名称
+  description: String, // 电影简介
+  video: String, // 电影预告
+  poster: String, // 电影海报
+  movieTypes: [String], // 电影类型
+  pubdate: Mixed,
+  year: Number, // 电影年份
+  languages: [String], // 电影语言
+  countries: [String], // 电影地区
+  actors: [String], // 电影演员
+  directors: [String], // 电影导演
   videoKey: String,
   coverKey: String,
   posterKey: String,
-
-  rawTitle: String,
-  movieTypes: [String],
-  pubdate: Mixed,
-  year: Number,
-
-  tags: [String],
-
   meta: {
     createdAt: {
       type: Date,

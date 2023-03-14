@@ -3,17 +3,11 @@
 const mongoose = require('mongoose')
 const db = 'mongodb://localhost/douban-test'
 const glob = require('glob')
-const { resolve } = require('path')
 const {MovieSchema} = require('./schema/movie')
 const {categorySchema} = require('./schema/category')
 const {UserSchema} = require('./schema/user')
 
 mongoose.Promise = global.Promise
-
-exports.initSchemas = () => {
-    glob.sync(resolve(__dirname, './schema', '**/*.js')).forEach(
-        require)
-}
 
 exports.connect = () => {
     let maxConnectTimes = 0
@@ -41,13 +35,6 @@ exports.connect = () => {
         })
 
         mongoose.connection.on('open', () => {
-            // const Dog = mongoose.model('Dog', {name: String})
-            // const doga = new Dog({name: '阿尔法'})
-
-            // doga.save().then(()=>{
-            //     console.log('wang')
-            // })
-            // console.log('MovieSchema: ', MovieSchema)
             mongoose.model('Movie', MovieSchema)
             mongoose.model('Category', categorySchema)
             mongoose.model('User', UserSchema)

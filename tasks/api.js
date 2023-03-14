@@ -83,8 +83,6 @@ async function fetchMovie (item) {
         country
       })
       movie.pubdate = pubdates
-
-      // console.log('movie: ', movie)
       await movie.save()
     }
   }

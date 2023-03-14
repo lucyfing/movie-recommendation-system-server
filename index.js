@@ -1,7 +1,8 @@
 const Koa = require('koa');
-const { connect, initSchemas } = require('./database/init');
+const { connect } = require('./database/init');
 const R = require('ramda');
-const { resolve } = require('path')
+const { resolve } = require('path');
+const { mongoose } = require('mongoose');
 const MIDDLEWARES = ['router']
 
 const useMiddlewares = (app) => {
@@ -19,20 +20,17 @@ const useMiddlewares = (app) => {
 
 
 ;(async () => {
-    await connect()
-    // const Movie = mongoose.model('Movie')
-    // const movies = await Movie.find({})
-    // console.log(movies)
+    await connect();
 
-    // require('./tasks/movie') 
+    // require('./tasks/movie')
+    // require('./tasks/category')
 
     const app = new Koa()
-    // const cors = require('koa-cors')
-    const cors = require('@koa/cors');
+    // const cors = require('@koa/cors');
 
-    app.use(cors())
+    // app.use(cors())
 
-    await useMiddlewares(app)
+    // await useMiddlewares(app)
 
     app.listen(4455)
 
