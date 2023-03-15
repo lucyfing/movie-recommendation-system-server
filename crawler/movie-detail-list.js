@@ -33,8 +33,7 @@ const sleep = time => new Promise(resolve => {
     setTimeout(resolve, time);
 })
 
-const load = async (num)=>{
-    // require('./data/movies-list');
+const crawlAllMovieDetail = async (num)=>{
     let movieDetailList = [];
     for (let [index, movie] of globalThis.moviesList.entries()) {
         if(index>=num&&index<num+5) {
@@ -55,9 +54,9 @@ const load = async (num)=>{
 
 ;(async ()=>{
     require('./data/movies-list');
-    let i = 133;
-    while(i<=150) {
-        await load(i);
+    let i = 213;
+    while(i<=233) {
+        await crawlAllMovieDetail(i);
         await sleep(3000);
         console.log('loading');
         i = i+5;

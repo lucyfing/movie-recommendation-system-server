@@ -10,7 +10,6 @@ const useMiddlewares = (app) => {
         R.compose(
             R.forEachObjIndexed(
                 initWith => initWith(app)
-                // e => e(app)
             ),
             require,
             name => resolve(__dirname, `./middlewares/${name}`)
@@ -21,17 +20,12 @@ const useMiddlewares = (app) => {
 
 ;(async () => {
     await connect();
-
     // require('./tasks/movie')
     // require('./tasks/category')
 
     const app = new Koa()
-    // const cors = require('@koa/cors');
-
-    // app.use(cors())
-
-    // await useMiddlewares(app)
-
+    const cors = require('@koa/cors');
+    app.use(cors())
+    await useMiddlewares(app)
     app.listen(4455)
-
 })()

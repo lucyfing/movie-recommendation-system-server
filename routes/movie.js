@@ -5,7 +5,7 @@ const {
     getRelativeMovies
 } = require('../service/movie')
 
-@controller('/api/v0/movies')
+@controller('/movies')
 export default class MovieController {
     @get('/')
     // 获取所有电影列表

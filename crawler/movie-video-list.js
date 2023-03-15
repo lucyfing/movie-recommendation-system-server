@@ -1,20 +1,16 @@
 /**** 爬虫文件，爬取豆瓣电影视频数据 *************/ 
 
-const { split } = require('lodash');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const writePath = path.resolve(__dirname, './data/movie-video-list.js')
-
 const base = 'https://movie.douban.com/subject/';
-const doubanId = '3541415';
-const videoBase = 'https://movie.douban.com/trailer/219491';
 
 const sleep = (time) => new Promise(resolve => {
   setTimeout(resolve, time);
 })
 
-const load = async (num) => {
+const crawlAllMovieVideo = async (num) => {
   console.log('Start visit the target page');
   const browser = await puppeteer.launch({
     args: ['--no-sandbox'],
@@ -22,7 +18,6 @@ const load = async (num) => {
   });
   const page = await browser.newPage();
 
-  // require('./data/movies-list');
   const moviesListLen = globalThis.moviesList.length;
   let movieVideoList = [];
   for(let i=num; i<num+5; i++) {
@@ -82,9 +77,9 @@ const load = async (num) => {
 
 ;(async ()=>{
   require('./data/movies-list');
-  let i = 240;
+  let i = 0;
   while(i<=245) {
-    await load(i);
+    await crawlAllMovieVideo(i);
     await sleep(3000);
     i = i+5;
   }
