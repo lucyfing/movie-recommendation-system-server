@@ -3,7 +3,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const writePath = path.resolve(__dirname, './data/movie-video-list.js')
+const writePath = path.resolve(__dirname, './data/movie-video-list2.js')
 const base = 'https://movie.douban.com/subject/';
 
 const sleep = (time) => new Promise(resolve => {
@@ -61,8 +61,8 @@ const crawlAllMovieVideo = async (num) => {
     }
 
     movieVideoList.push({
-      video: video,
-      doubanId: globalThis.moviesList[i].doubanId,
+      ...globalThis.moviesList[i],
+      video: video
     })
   }
   await browser.close();
@@ -77,7 +77,7 @@ const crawlAllMovieVideo = async (num) => {
 
 ;(async ()=>{
   require('./data/movies-list');
-  let i = 0;
+  let i = 240;
   while(i<=245) {
     await crawlAllMovieVideo(i);
     await sleep(3000);

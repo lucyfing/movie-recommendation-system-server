@@ -15,8 +15,8 @@ const Category = mongoose.model('Category')
       {description: ''}
     ]
   }).exec();
-  require('../crawler/data/movie-detail-list');
-  require('../crawler/data/movie-video-list');
+  require('../crawler/data/movies-detail-list');
+  require('../crawler/data/movies-video-list');
 
   for(let i=30; i<130; i++) {
     let movie = movies[i];
