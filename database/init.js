@@ -9,6 +9,39 @@ const {UserSchema} = require('./schema/user')
 
 mongoose.Promise = global.Promise
 
+exports.initUser = async () => {
+    const User = mongoose.model('User')
+    const user = await User.findOne({
+        username: 'guest'
+    })
+    const admin = await User.findOne({
+        username: 'admin'
+    })
+
+    if(!user) {
+        const user = new User({
+            username: 'guest',
+            email: '2665724078@qq.com',
+            password: 'guest',
+            avatar: 'https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png',
+            description: ''
+        })
+        await user.save()
+    }
+
+    if(!admin) {
+        const admin = new User({
+            role: 'admin',
+            username: 'admin',
+            email: 'lucy202306@163.com',
+            password: 'ant.design',
+            avatar: 'https://gw.alipayobjects.com/zos/rmsportal/JiqGstEfoWAOHiTxclqi.png',
+            description: ''
+        })
+        await admin.save()
+    }
+}
+
 exports.connect = () => {
     let maxConnectTimes = 0
 

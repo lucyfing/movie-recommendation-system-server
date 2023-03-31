@@ -1,9 +1,12 @@
 const Koa = require('koa');
-const { connect } = require('./database/init');
+const { connect, initUser } = require('./database/init');
 const R = require('ramda');
 const { resolve } = require('path');
 const { mongoose } = require('mongoose');
-const MIDDLEWARES = ['router']
+const MIDDLEWARES = ['common', 'router'];
+const cors = require('@koa/cors');
+const path = require('path');
+const serve = require('koa-static');
 
 const useMiddlewares = (app) => {
     R.map(
@@ -20,12 +23,14 @@ const useMiddlewares = (app) => {
 
 ;(async () => {
     await connect();
-    // require('./tasks/movie')
-    // require('./tasks/category')
+    // await initUser();
 
     const app = new Koa()
-    const cors = require('@koa/cors');
     app.use(cors())
     await useMiddlewares(app)
+
+    // 将 uploads 目录指定为静态资源目录
+    app.use(serve(__dirname + '/public'));
+
     app.listen(4455)
 })()

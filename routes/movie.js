@@ -34,7 +34,7 @@ export default class MovieController {
     }
 
     @get('/languages')
-    // 获取所有的上映地区
+    // 获取所有的语言
     async getLanguages (ctx, next) {
         const languages = await getAllLanguage()
         ctx.body = {
