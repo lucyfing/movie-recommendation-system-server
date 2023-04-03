@@ -2,6 +2,7 @@
 
 const mongoose = require('mongoose')
 const Movie = mongoose.model('Movie')
+const MovieCollection = mongoose.model('MovieCollection')
 const utils = require('./utils/index')
 
 // 获取所有电影列表

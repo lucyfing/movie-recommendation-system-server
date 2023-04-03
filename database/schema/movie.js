@@ -25,6 +25,11 @@ const MovieSchema = new mongoose.Schema({
   countries: [String], // 电影地区
   actors: [String], // 电影演员
   directors: [String], // 电影导演
+  writers: [String], // 电影编剧
+  dateReleased: {
+    type: String,
+    default: '未知'
+  }, // 上映时间
   videoKey: String,
   coverKey: String,
   posterKey: String,

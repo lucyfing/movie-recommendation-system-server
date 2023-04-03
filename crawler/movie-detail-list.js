@@ -3,7 +3,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const writePath = path.resolve(__dirname, './data/movies-detail-list2.js');
+const writePath = path.resolve(__dirname, './data/movies-detail-list.js');
 const url = 'https://api.wmdb.tv/movie/api?id=1295124'
 const rp = require('request-promise-native')
 
@@ -56,7 +56,7 @@ const crawlAllMovieDetail = async (num)=>{
 }
 
 ;(async ()=>{
-    require('./data/movies-video-list2.js');
+    require('./data/movies-video-list.js');
     let i = 246;
     while(i<=246) {
         await crawlAllMovieDetail(i);

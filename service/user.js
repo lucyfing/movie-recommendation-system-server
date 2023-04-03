@@ -1,6 +1,11 @@
 const mongoose = require('mongoose')
 const User = mongoose.model('User')
+const UserCollection = mongoose.model('UserCollection')
+const MovieCollection = mongoose.model('MovieCollection')
 const bcrypt = require('bcrypt')
+const path = require('path')
+const fs = require('fs')
+const utils = require('./utils/index')
 const SALT_WORK_FACTOR = 10
 
 
@@ -27,6 +32,10 @@ export const updateUser = async (_id, username, avatar, description) => {
     await User.update({_id},{$set:{username: username}})
   }
   if(avatar) {
+    const user = await User.findOne({_id})
+    if(fs.existsSync(path.resolve(__dirname, `../public${user.avatar}`))) {
+      fs.unlinkSync(path.resolve(__dirname, `../public${user.avatar}`))
+    }
     await User.update({_id},{$set:{avatar: avatar}})
   }
   if(description) {
@@ -50,5 +59,50 @@ export const updatePwd = async (email, password, newPassword) => {
 
   return {
     success: false
+  }
+}
+
+
+// 查询、收藏或取消电影收藏
+export const userMovies = async (userId, doubanId, collection) => {
+  let flag
+  const result = await UserCollection.findOne({userId: userId, doubanId: doubanId})
+  if(result) flag = true
+  else flag = false
+  const {collectionVotes} = await MovieCollection.findOne({doubanId:doubanId})
+  let newCollectionVotes = collectionVotes
+
+  if(collection===1 && !flag) {
+    await UserCollection.create({userId: userId, doubanId: doubanId})
+    await MovieCollection.updateOne({doubanId:doubanId}, {$set: {collectionVotes: newCollectionVotes+collection}})
+    const {collectionVotes} = await MovieCollection.findOne({doubanId})
+    newCollectionVotes = collectionVotes
+    flag = true
+  }
+  if(collection===-1 && flag) {
+    await UserCollection.deleteOne({userId: userId, doubanId: doubanId})
+    await MovieCollection.updateOne({doubanId:doubanId}, {$set: {collectionVotes: newCollectionVotes+collection}})
+    const {collectionVotes} = await MovieCollection.findOne({doubanId})
+    newCollectionVotes = collectionVotes
+    flag = false
+  }
+
+  return {
+    collectionUser: flag,
+    collectionVotes: newCollectionVotes
+  }
+}
+
+
+// 用户获取收藏列表
+export const getCollections = async (userId, pageSize, page) => {
+  const query = {}
+  query.userId = {userId:userId}
+  const {list, currentPage, totalPages, totalData} = await utils.paginationList(UserCollection, query, page, pageSize)
+  return {
+    list, 
+    currentPage, 
+    totalPages, 
+    totalData
   }
 }

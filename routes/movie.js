@@ -1,3 +1,5 @@
+import _ from 'lodash'
+
 const { controller, get, post, put, del } = require('../lib/decorator')
 const { 
     getAllMovies,
@@ -80,6 +82,7 @@ export default class MovieController {
             success: true
         }
     }
+
 }
 
 

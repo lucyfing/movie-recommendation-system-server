@@ -3,7 +3,7 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const writePath = path.resolve(__dirname, './data/movie-video-list2.js')
+const writePath = path.resolve(__dirname, './data/movie-video-list.js')
 const base = 'https://movie.douban.com/subject/';
 
 const sleep = (time) => new Promise(resolve => {

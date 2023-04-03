@@ -1,5 +1,5 @@
 const Koa = require('koa');
-const { connect, initUser } = require('./database/init');
+const { connect, initUser, initCategory, initMovie, initMovieCollection } = require('./database/init');
 const R = require('ramda');
 const { resolve } = require('path');
 const { mongoose } = require('mongoose');
@@ -24,6 +24,9 @@ const useMiddlewares = (app) => {
 ;(async () => {
     await connect();
     // await initUser();
+    // await initCategory();
+    // await initMovie();
+    // await initMovieCollection();
 
     const app = new Koa()
     app.use(cors())

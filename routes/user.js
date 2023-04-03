@@ -11,7 +11,9 @@ const {
     checkPassword,
     updateUsername,
     updateUser,
-    updatePwd
+    updatePwd,
+    userMovies,
+    getCollections
 } = require('../service/user')
 
 @controller('/user')
@@ -62,13 +64,12 @@ export default class userController {
   @post('/avatar')
   // 修改头像
   async updateAvatar (ctx, next) {
-    // let {_id, avatar} = ctx.request.files.avatarObj
     let {_id} = ctx.request.body
     let {avatar} = ctx.request.files
     // 将文件复制到静态资源目录下
-    const filePath = path.resolve(__dirname, `../public/imgs/${avatar.originalFilename}`)
+    const filePath = path.resolve(__dirname, `../public/imgs/${_id}_${avatar.originalFilename}`)
     fs.copyFileSync(avatar.filepath, filePath)
-    avatar = `/imgs/${avatar.originalFilename}`
+    avatar = `/imgs/${_id}_${avatar.originalFilename}`
     const user = await updateUser(_id, undefined, avatar, undefined)
     return (ctx.body = {
       success: true,
@@ -91,6 +92,31 @@ export default class userController {
     return (ctx.body = {
       success: false,
       err: '旧密码不正确,更新失败'
+    })
+  }
+
+  @post('/userMovie')
+  // 收藏电影
+  async updateCollection (ctx, next) {
+    const {_id, doubanId, collection} = ctx.request.body
+    const {collectionUser, collectionVotes} = await userMovies(_id, doubanId, collection)
+    return (ctx.body = {
+      collectionUser,
+      collectionVotes
+    })
+  }
+
+
+  @post('/myCollections')
+  // 收藏列表
+  async getCollectionList (ctx, next) {
+    const {_id, page, pageSize} = ctx.request.body
+    const {list, currentPage, totalPages, totalData} = await getCollections(_id, page, pageSize)
+    return (ctx.body = {
+      list, 
+      currentPage, 
+      totalPages, 
+      totalData
     })
   }
 
