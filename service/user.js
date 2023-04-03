@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const User = mongoose.model('User')
+const Movie = mongoose.model('Movie')
 const UserCollection = mongoose.model('UserCollection')
 const MovieCollection = mongoose.model('MovieCollection')
 const bcrypt = require('bcrypt')
@@ -95,10 +96,11 @@ export const userMovies = async (userId, doubanId, collection) => {
 
 
 // 用户获取收藏列表
-export const getCollections = async (userId, pageSize, page) => {
-  const query = {}
-  query.userId = {userId:userId}
-  const {list, currentPage, totalPages, totalData} = await utils.paginationList(UserCollection, query, page, pageSize)
+export const getCollections = async (userId, page, pageSize) => {
+  const query = {userId:userId}
+  let {list, currentPage, totalPages, totalData} = await utils.paginationList(UserCollection, query, page, pageSize)
+  const doubanIdArr = list.map(item=>item.doubanId)
+  list = await Movie.find({doubanId: {$in: doubanIdArr}})
   return {
     list, 
     currentPage, 
