@@ -8,7 +8,8 @@ const {
     getAllcountry,
     getAllLanguage,
     getFilterMovieList,
-    deleteMovies
+    deleteMovies,
+    queryMovie
 } = require('../service/movie')
 
 @controller('/movies')
@@ -81,6 +82,16 @@ export default class MovieController {
             },
             success: true
         }
+    }
+
+    @get('/queryMovies')
+    // 查询电影
+    async queryMovieList (ctx, next) {
+        const {name} = ctx.query
+        const movieList = await queryMovie(name)
+        return (ctx.body = {
+            movieList
+        })
     }
 
 }

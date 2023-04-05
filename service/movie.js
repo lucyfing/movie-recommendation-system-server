@@ -62,6 +62,12 @@ export const deleteMovies = async (doubanIds) => {
   return result.deletedCount;
 }
 
+// 根据电影名搜索电影
+export const queryMovie = async (name) => {
+  const movieList = await Movie.find({name: {$regex: name}})
+  return movieList
+}
+
 
 // 获取同类推荐电影
 export const getRelativeMovies = async (movie) => {

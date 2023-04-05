@@ -108,3 +108,36 @@ export const getCollections = async (userId, page, pageSize) => {
     totalData
   }
 }
+
+
+// 注册用户
+export const reateUser = async (username, password, email) => {
+  const user = await User.findOne({$or: [
+    {username: username},
+    {email: email}
+  ]})
+  if(!user) {
+    const hashedPassword = bcrypt.hashSync(password, SALT_WORK_FACTOR);
+    await User.insertMany({username, password: hashedPassword, email})
+    return {
+      success: true,
+      message: '新用户注册成功'
+    }
+  }
+  if(user.username === username) {
+    return {
+      success: false,
+      message: '用户名已存在'
+    }  
+  }
+  if(user.email === email) {
+    return {
+      success: false,
+      message: '邮箱已存在'
+    }  
+  }
+  return {
+    success: false,
+    message: '新用户注册失败'
+  }
+}

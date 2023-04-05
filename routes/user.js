@@ -13,7 +13,8 @@ const {
     updateUser,
     updatePwd,
     userMovies,
-    getCollections
+    getCollections,
+    reateUser
 } = require('../service/user')
 
 @controller('/user')
@@ -117,6 +118,17 @@ export default class userController {
       currentPage, 
       totalPages, 
       totalData
+    })
+  }
+
+  @post('/createUser')
+  // 新建用户
+  async createNewUser (ctx, next) {
+    const {username, password, email} = ctx.request.body
+    const {success, message} = await reateUser(username, password, email)
+    return (ctx.body = {
+      success,
+      message
     })
   }
 
