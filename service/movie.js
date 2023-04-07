@@ -2,7 +2,10 @@
 
 const mongoose = require('mongoose')
 const Movie = mongoose.model('Movie')
+const User = mongoose.model('User')
+const Category = mongoose.model('Category')
 const MovieCollection = mongoose.model('MovieCollection')
+const UserCollection = mongoose.model('UserCollection')
 const utils = require('./utils/index')
 
 // 获取所有电影列表
@@ -83,4 +86,95 @@ export const getSingleMovie = async (doubanId) => {
   const movie = await Movie.findOne({doubanId: doubanId})
 
   return movie
+}
+
+
+// 推荐电影
+export const recommendMovies = async (userId, doubanId) => {
+  let result = []
+  if(userId) {
+    // 获取指定用户的收藏列表
+    const favorites = await UserCollection.find({userId})
+    const favoritesId = favorites.map((favorite) => favorite.doubanId)
+    // 获取该用户收藏的所有电影信息
+    const movies = await Promise.all(favorites.map(async (favorite) => {
+      const movie = await Movie.findOne({doubanId: favorite.doubanId})
+      return {userId: favorite.userId, ...movie['_doc']}
+    }))
+
+    // 获取与该用户收藏相似的其他用户
+    const favoriteDoubanIds = movies.map(movie => movie.doubanId)
+    const otherFavorites = await UserCollection.find({doubanId: {$in: favoriteDoubanIds}, userId: {$ne: userId}})
+    const otherUserIds = otherFavorites.map((favorite) => favorite.userId)
+    const otherUsers = await User.find({_id: {$in: otherUserIds}})
+    // 根据用户收藏的相同的电影数量来计算用户相似度
+    const similarUsers = await Promise.all(otherUsers.map(async (user) => {
+      const similarScore = otherFavorites.reduce((score, favorite) => {
+        if(favorite.userId === String(user._id)) {
+          score += 1
+        }
+        return score
+      }, 0)
+      return {userId: user._id, similarScore}
+    }))
+
+    // 找到与该用户最相似的一些用户，并获取这些用户的电影收藏列表
+    const topUsers = similarUsers.sort((a,b) => b.similarScore - a.similarScore).slice(0, 10)
+    const recommendMovieList = await Promise.all(topUsers.map(async (user) => {
+      const otherFavorites = await UserCollection.find({userId: user.userId})
+      const otherMovieIds = Array.from(new Set(otherFavorites.map((favorite)=>favorite.doubanId)))
+
+      // 过滤该用户已经收藏的电影
+      const filterMoviesId = otherMovieIds.filter((doubanId) => favoritesId.indexOf(doubanId)===-1)
+      const moviesToRecommend = await Movie.find({doubanId: {$in: filterMoviesId}})
+      return moviesToRecommend
+    }))
+
+    // 将推荐结果按照推荐度排序，推荐度越高排名越靠前
+    const sortedRecommentedMovies = recommendMovieList
+    .flatMap((movies) => movies)
+    .reduce((result, movie) => {
+      const index = result.findIndex((item) => item.doubanId === movie.doubanId)
+      if(index !== -1) {
+        result[index].recommendationScore += 1
+      } else {
+        result.push({...movie['_doc'], recommendationScore: 1})
+      }
+      return result
+    }, [])
+    .sort((a,b) => b.recommendationScore - a.recommendationScore)
+    .slice(0, 10)
+
+    result = [...sortedRecommentedMovies]
+  } 
+
+  // 根据电影类型推荐收藏最多的电影
+  const len = result.length
+  const resultIds = new Set(result.map(movie => movie.doubanId))
+  if(len>=0 && len<10) {
+    const {movieTypes} = await Movie.findOne({doubanId}, {movieTypes: 1})
+    const categories = await Category.find({name: {$in: movieTypes}})
+    const moviesId = Array.from(new Set(...categories.map(category => category.movies)))
+    const movies = await Movie.find({_id: {$in: moviesId}})
+    const newNovies = await Promise.all(movies.map(async movie => {
+      const collection = await MovieCollection.findOne({doubanId: movie.doubanId})
+      return {collectionVotes: collection.collectionVotes, ...movie['_doc']}
+    }))
+
+    let favoritesId = []
+    if(userId) {
+      // 获取指定用户的收藏列表
+      const favorites = await UserCollection.find({userId})
+      favoritesId = favorites.map((favorite) => favorite.doubanId)
+    }
+
+    const sortedMovies = newNovies
+    .sort((a,b) => b.collectionVotes - a.collectionVotes)
+    .filter((movie) => len===0 || (!resultIds.has(movie.doubanId) && favoritesId.indexOf(movie.doubanId)===-1))
+    .slice(0, 10)
+
+    result = [...result, ...sortedMovies.slice(0, sortedMovies.length-len)]
+  }
+
+  return result
 }

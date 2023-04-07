@@ -9,7 +9,8 @@ const {
     getAllLanguage,
     getFilterMovieList,
     deleteMovies,
-    queryMovie
+    queryMovie,
+    recommendMovies
 } = require('../service/movie')
 
 @controller('/movies')
@@ -67,23 +68,17 @@ export default class MovieController {
             deletedCount
         }
     }
-  
-    @get('/:doubanId')
-    // 获取单个电影信息
-    async getMovieDetail (ctx, next) {
-        const id = ctx.params.id
-        const movie = await getSingleMovie(doubanId)
-        const relativeMovies = await getRelativeMovies(movie)
 
-        ctx.body = {
-            data: {
-                movie,
-                relativeMovies
-            },
-            success: true
-        }
+    @post('/recommendMovies')
+    // 推荐电影
+    async recommendMovieList (ctx, next) {
+        const {_id, doubanId} = ctx.request.body
+        const movies = await recommendMovies(_id, doubanId)
+        return (ctx.body = {
+            movies
+        })
     }
-
+  
     @get('/queryMovies')
     // 查询电影
     async queryMovieList (ctx, next) {
@@ -95,7 +90,3 @@ export default class MovieController {
     }
 
 }
-
-
-
-// module.exports = router
