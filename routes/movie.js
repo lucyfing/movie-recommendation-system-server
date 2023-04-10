@@ -3,14 +3,13 @@ import _ from 'lodash'
 const { controller, get, post, put, del } = require('../lib/decorator')
 const { 
     getAllMovies,
-    getSingleMovie, 
-    getRelativeMovies,
     getAllcountry,
     getAllLanguage,
     getFilterMovieList,
     deleteMovies,
     queryMovie,
-    recommendMovies
+    recommendSomeMovies,
+    recommendAllMovies
 } = require('../service/movie')
 
 @controller('/movies')
@@ -71,9 +70,19 @@ export default class MovieController {
 
     @post('/recommendMovies')
     // 推荐电影
-    async recommendMovieList (ctx, next) {
+    async recommendSomeMovies (ctx, next) {
         const {_id, doubanId} = ctx.request.body
-        const movies = await recommendMovies(_id, doubanId)
+        const movies = await recommendSomeMovies(_id, doubanId)
+        return (ctx.body = {
+            movies
+        })
+    }
+
+    @post('/recommendAllMovies')
+    // 推荐全部电影
+    async recommendAllMovies (ctx, next) {
+        const {_id} = ctx.request.body
+        const movies = await recommendAllMovies(_id)
         return (ctx.body = {
             movies
         })

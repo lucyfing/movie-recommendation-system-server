@@ -1,5 +1,6 @@
 // 处理电影信息的操作，直接与数据库进行交互
-
+const redis = require('redis')
+const { promisify } = require('util')
 const mongoose = require('mongoose')
 const Movie = mongoose.model('Movie')
 const User = mongoose.model('User')
@@ -89,63 +90,15 @@ export const getSingleMovie = async (doubanId) => {
 }
 
 
-// 推荐电影
-export const recommendMovies = async (userId, doubanId) => {
+// 特定电影下（登录和未登录）推荐电影
+export const recommendSomeMovies = async (userId, doubanId) => {
   let result = []
+
   if(userId) {
-    // 获取指定用户的收藏列表
-    const favorites = await UserCollection.find({userId})
-    const favoritesId = favorites.map((favorite) => favorite.doubanId)
-    // 获取该用户收藏的所有电影信息
-    const movies = await Promise.all(favorites.map(async (favorite) => {
-      const movie = await Movie.findOne({doubanId: favorite.doubanId})
-      return {userId: favorite.userId, ...movie['_doc']}
-    }))
-
-    // 获取与该用户收藏相似的其他用户
-    const favoriteDoubanIds = movies.map(movie => movie.doubanId)
-    const otherFavorites = await UserCollection.find({doubanId: {$in: favoriteDoubanIds}, userId: {$ne: userId}})
-    const otherUserIds = otherFavorites.map((favorite) => favorite.userId)
-    const otherUsers = await User.find({_id: {$in: otherUserIds}})
-    // 根据用户收藏的相同的电影数量来计算用户相似度
-    const similarUsers = await Promise.all(otherUsers.map(async (user) => {
-      const similarScore = otherFavorites.reduce((score, favorite) => {
-        if(favorite.userId === String(user._id)) {
-          score += 1
-        }
-        return score
-      }, 0)
-      return {userId: user._id, similarScore}
-    }))
-
-    // 找到与该用户最相似的一些用户，并获取这些用户的电影收藏列表
-    const topUsers = similarUsers.sort((a,b) => b.similarScore - a.similarScore).slice(0, 10)
-    const recommendMovieList = await Promise.all(topUsers.map(async (user) => {
-      const otherFavorites = await UserCollection.find({userId: user.userId})
-      const otherMovieIds = Array.from(new Set(otherFavorites.map((favorite)=>favorite.doubanId)))
-
-      // 过滤该用户已经收藏的电影
-      const filterMoviesId = otherMovieIds.filter((doubanId) => favoritesId.indexOf(doubanId)===-1)
-      const moviesToRecommend = await Movie.find({doubanId: {$in: filterMoviesId}})
-      return moviesToRecommend
-    }))
-
-    // 将推荐结果按照推荐度排序，推荐度越高排名越靠前
-    const sortedRecommentedMovies = recommendMovieList
-    .flatMap((movies) => movies)
-    .reduce((result, movie) => {
-      const index = result.findIndex((item) => item.doubanId === movie.doubanId)
-      if(index !== -1) {
-        result[index].recommendationScore += 1
-      } else {
-        result.push({...movie['_doc'], recommendationScore: 1})
-      }
-      return result
-    }, [])
-    .sort((a,b) => b.recommendationScore - a.recommendationScore)
-    .slice(0, 10)
-
-    result = [...sortedRecommentedMovies]
+    // 获取基于用户收藏行为的协同过滤算法函数推荐的电影
+    const otherUserFavorates = await utils.userCF(userId)
+    if(otherUserFavorates.length >= 10) return otherUserFavorates.slice(0, 10)
+    result = otherUserFavorates
   } 
 
   // 根据电影类型推荐收藏最多的电影
@@ -153,15 +106,10 @@ export const recommendMovies = async (userId, doubanId) => {
   const resultIds = new Set(result.map(movie => movie.doubanId))
   if(len>=0 && len<10) {
     const {movieTypes} = await Movie.findOne({doubanId}, {movieTypes: 1})
-    const categories = await Category.find({name: {$in: movieTypes}})
-    const moviesId = Array.from(new Set(...categories.map(category => category.movies)))
-    const movies = await Movie.find({_id: {$in: moviesId}})
-    const newNovies = await Promise.all(movies.map(async movie => {
-      const collection = await MovieCollection.findOne({doubanId: movie.doubanId})
-      return {collectionVotes: collection.collectionVotes, ...movie['_doc']}
-    }))
+    const newNovies = await utils.itemCF(movieTypes)
 
     let favoritesId = []
+
     if(userId) {
       // 获取指定用户的收藏列表
       const favorites = await UserCollection.find({userId})
@@ -169,7 +117,6 @@ export const recommendMovies = async (userId, doubanId) => {
     }
 
     const sortedMovies = newNovies
-    .sort((a,b) => b.collectionVotes - a.collectionVotes)
     .filter((movie) => len===0 || (!resultIds.has(movie.doubanId) && favoritesId.indexOf(movie.doubanId)===-1))
     .slice(0, 10)
 
@@ -178,3 +125,69 @@ export const recommendMovies = async (userId, doubanId) => {
 
   return result
 }
+
+
+
+// 将所有电影按情况（登录和未登录）进行推荐
+export const recommendAllMovies = async (userId) => {
+
+  // 用户登录，按推荐算法推荐
+  if(userId) {
+    const userFavorites = await UserCollection.find({userId})
+    // 获取基于用户收藏行为的协同过滤算法函数推荐的电影
+    const otherUserFavorates = await utils.userCF(userId)
+
+    // 如果推荐数<50，则继续获取基于电影特征(类型、收藏数量)的协同过滤算法函数推荐的电影
+    if(otherUserFavorates.length < 50) {
+
+      // 获取最新收藏的10条电影数据
+      const latestCollections = await UserCollection
+      .find({userId})
+      .sort({ atUpdate: -1 })
+      .limit(10)
+
+      const lastestMoviesId = latestCollections.map(item => item.doubanId)
+      const movies = await Movie.find({doubanId: {$in: lastestMoviesId}})
+
+      // 获取收藏最多的三种类型
+      const movieTypes = movies.map(movie => movie.movieTypes).flatMap(types => types) 
+      const countTypeMap = movieTypes.reduce((acc, cur) => {
+        if (cur in acc) {
+          acc[cur]++;
+        } else {
+          acc[cur] = 1;
+        }
+        return acc;
+      }, {})
+      const maxTypes = Object.entries(countTypeMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(item => item[0])
+
+      // 基于电影推荐
+      let similarMovies = await utils.itemCF(maxTypes)
+
+      // 排除用户已收藏和基于用户收藏行为推荐的电影，并根据收藏数排序
+      const favoriteIds = [...userFavorites, ...otherUserFavorates].map(favorite => favorite.doubanId)
+      similarMovies = similarMovies
+      .flatMap(movie => movie)
+      .filter(movie => favoriteIds.indexOf(movie.doubanId)===-1)
+      .sort((a, b) => b.collectionVotes - a.collectionVotes)
+      .slice(0, 50-otherUserFavorates.length+1)
+
+      return [...otherUserFavorates, ...similarMovies]
+    }
+
+    return otherUserFavorates.slice(0, 50)
+  }
+
+  // 用户未登录，按电影收藏热点推荐
+  let collections = await MovieCollection.find({})
+  collections = collections.sort((a,b) => b.collectionVotes - a.collectionVotes).slice(0, 50)
+  const recommendedMovies = await Promise.all(collections.map(async item => {
+    const movie = await Movie.findOne({doubanId: item.doubanId})
+    return {collectionVotes: item.collectionVotes, ...movie['_doc']}
+  }))
+  return recommendedMovies
+}
+
