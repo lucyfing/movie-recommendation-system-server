@@ -91,93 +91,65 @@ export const getSingleMovie = async (doubanId) => {
 
 
 // 特定电影下（登录和未登录）推荐电影
-export const recommendSomeMovies = async (userId, doubanId) => {
-  let result = []
+// export const recommendSomeMovies = async (userId, doubanId) => {
+//   let result = []
 
+//   if(userId) {
+//     // 获取基于用户收藏行为的协同过滤算法函数推荐的电影
+//     const otherUserFavorates = await utils.userCF(userId)
+//     if(otherUserFavorates.length >= 10) return otherUserFavorates.slice(0, 10)
+//     result = otherUserFavorates
+//   } 
+
+//   // 根据电影类型推荐收藏最多的电影
+//   const len = result.length
+//   const resultIds = new Set(result.map(movie => movie.doubanId))
+//   if(len>=0 && len<10) {
+//     const {movieTypes} = await Movie.findOne({doubanId}, {movieTypes: 1})
+//     const newNovies = await utils.itemCF(movieTypes)
+
+//     let favoritesId = []
+
+//     if(userId) {
+//       // 获取指定用户的收藏列表
+//       const favorites = await UserCollection.find({userId})
+//       favoritesId = favorites.map((favorite) => favorite.doubanId)
+//     }
+
+//     const sortedMovies = newNovies
+//     .filter((movie) => len===0 || (!resultIds.has(movie.doubanId) && favoritesId.indexOf(movie.doubanId)===-1))
+//     .slice(0, 10)
+
+//     result = [...result, ...sortedMovies.slice(0, sortedMovies.length-len)]
+//   }
+
+//   return result
+// }
+
+
+// 通过协同过滤算法推荐排名最高的前10部电影
+export const recommendSomeMovies = async (userId, doubanId) => {
+
+  // 用户登录，根据用户收藏行为进行推荐
   if(userId) {
-    // 获取基于用户收藏行为的协同过滤算法函数推荐的电影
-    const otherUserFavorates = await utils.userCF(userId)
-    if(otherUserFavorates.length >= 10) return otherUserFavorates.slice(0, 10)
-    result = otherUserFavorates
+    const otherUserFavorates = await utils.newUserCF(userId)
+    return otherUserFavorates.slice(0, 10)
   } 
 
-  // 根据电影类型推荐收藏最多的电影
-  const len = result.length
-  const resultIds = new Set(result.map(movie => movie.doubanId))
-  if(len>=0 && len<10) {
-    const {movieTypes} = await Movie.findOne({doubanId}, {movieTypes: 1})
-    const newNovies = await utils.itemCF(movieTypes)
-
-    let favoritesId = []
-
-    if(userId) {
-      // 获取指定用户的收藏列表
-      const favorites = await UserCollection.find({userId})
-      favoritesId = favorites.map((favorite) => favorite.doubanId)
-    }
-
-    const sortedMovies = newNovies
-    .filter((movie) => len===0 || (!resultIds.has(movie.doubanId) && favoritesId.indexOf(movie.doubanId)===-1))
-    .slice(0, 10)
-
-    result = [...result, ...sortedMovies.slice(0, sortedMovies.length-len)]
-  }
-
-  return result
+  // 用户未登录，根据当前电影类型推荐
+  const similarMovies = await utils.newItemCF(doubanId)
+  return similarMovies.slice(0, 10)
 }
 
 
 
-// 将所有电影按情况（登录和未登录）进行推荐
+// 通过协同过滤算法推荐所有符合条件的电影
 export const recommendAllMovies = async (userId) => {
 
-  // 用户登录，按推荐算法推荐
+  // 用户登录
   if(userId) {
-    const userFavorites = await UserCollection.find({userId})
     // 获取基于用户收藏行为的协同过滤算法函数推荐的电影
-    const otherUserFavorates = await utils.userCF(userId)
-
-    // 如果推荐数<50，则继续获取基于电影特征(类型、收藏数量)的协同过滤算法函数推荐的电影
-    if(otherUserFavorates.length < 50) {
-
-      // 获取最新收藏的10条电影数据
-      const latestCollections = await UserCollection
-      .find({userId})
-      .sort({ atUpdate: -1 })
-      .limit(10)
-
-      const lastestMoviesId = latestCollections.map(item => item.doubanId)
-      const movies = await Movie.find({doubanId: {$in: lastestMoviesId}})
-
-      // 获取收藏最多的三种类型
-      const movieTypes = movies.map(movie => movie.movieTypes).flatMap(types => types) 
-      const countTypeMap = movieTypes.reduce((acc, cur) => {
-        if (cur in acc) {
-          acc[cur]++;
-        } else {
-          acc[cur] = 1;
-        }
-        return acc;
-      }, {})
-      const maxTypes = Object.entries(countTypeMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(item => item[0])
-
-      // 基于电影推荐
-      let similarMovies = await utils.itemCF(maxTypes)
-
-      // 排除用户已收藏和基于用户收藏行为推荐的电影，并根据收藏数排序
-      const favoriteIds = [...userFavorites, ...otherUserFavorates].map(favorite => favorite.doubanId)
-      similarMovies = similarMovies
-      .flatMap(movie => movie)
-      .filter(movie => favoriteIds.indexOf(movie.doubanId)===-1)
-      .sort((a, b) => b.collectionVotes - a.collectionVotes)
-      .slice(0, 50-otherUserFavorates.length+1)
-
-      return [...otherUserFavorates, ...similarMovies]
-    }
-
+    const otherUserFavorates = await utils.newUserCF(userId)
     return otherUserFavorates.slice(0, 50)
   }
 
@@ -189,5 +161,6 @@ export const recommendAllMovies = async (userId) => {
     return {collectionVotes: item.collectionVotes, ...movie['_doc']}
   }))
   return recommendedMovies
+  
 }
 
