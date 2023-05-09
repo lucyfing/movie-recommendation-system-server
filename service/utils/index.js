@@ -11,7 +11,7 @@ const paginationFun = async (query, page, pageSize) => {
     let totalPages = 1
     let currentPage = 1
     if(pageSize) {
-      totalPages = Math.ceil(count / pageSize)
+      totalPages = Math.ceil(count / pageSize) > 0 ? Math.ceil(count / pageSize) : 1
       currentPage = page > totalPages ? totalPages : page
       movies = await Movie.find(query).skip((currentPage-1)*pageSize).limit(pageSize)
     }
@@ -25,6 +25,13 @@ const paginationFun = async (query, page, pageSize) => {
 
 const paginationList = async (schema, query, page, pageSize) => {
   const count = await schema.countDocuments(query)
+  if(count === 0) return {
+    list: [],
+    currentPage: 1,
+    totalPages: 1,
+    totalData: 0
+  }
+  
   let list = await schema.find(query)
   let totalPages = 1
   let currentPage = 1
@@ -41,80 +48,6 @@ const paginationList = async (schema, query, page, pageSize) => {
   }
 }
 
- // 基于用户收藏行为的协同过滤算法函数 
- const userCF = async (userId) => {
-
-  // 从数据库中检索该用户收藏的电影列表
-  const favorites = await UserCollection.find({userId})
-  const favoritesId = favorites.map((favorite) => favorite.doubanId)
-
-  // 获取与该用户收藏相似的其他用户
-  const otherFavorites = await UserCollection.find({doubanId: {$in: favoritesId}, userId: {$ne: userId}})
-  const otherUserIds = otherFavorites.map((favorite) => favorite.userId)
-
-  // 根据用户收藏的相同的电影数量来计算用户相似度
-  const similarUsers = await Promise.all(otherUserIds.map(async (userId) => {
-    const similarScore = otherFavorites.reduce((score, favorite) => {
-      if(favorite.userId === userId) {
-        score += 1
-      }
-      return score
-    }, 0)
-    return {userId, similarScore}
-  }))
-
-  // 找到与该用户最相似的一些用户，并获取这些用户的电影收藏列表
-  const topUsers = similarUsers.filter((user) => user.similarScore>0)
-  let recommenddoubanIds = await Promise.all(topUsers.map(async (user) => {
-    const otherFavorites = await UserCollection.find({userId: user.userId})
-    const otherMovieIds = otherFavorites.map((favorite)=>favorite.doubanId)
-    return otherMovieIds
-  }))
-  // 去除用户已收藏的电影
-  // recommenddoubanIds = Array.from(new Set(recommenddoubanIds.flatMap(doubanIds=>doubanIds))).filter((doubanId) => favoritesId.indexOf(doubanId)===-1)
-  recommenddoubanIds = recommenddoubanIds
-  .flatMap(doubanIds=>doubanIds)
-  .filter((doubanId) => favoritesId.indexOf(doubanId)===-1)
-
-  const recommendMovieList = await Movie.find({doubanId: {$in: recommenddoubanIds}})
-
-  // 将推荐结果按照推荐度排序，推荐度越高排名越靠前
-  const sortedRecommentedMovies = recommendMovieList
-  .flatMap((movies) => movies)
-  .reduce((result, movie) => {
-    // 找到第一个符合条件的元素的索引值
-    const index = result.findIndex((item) => item.doubanId === movie.doubanId)
-    if(index !== -1) {
-      result[index].recommendationScore += 1
-    } else {
-      result.push({...movie['_doc'], recommendationScore: 1})
-    }
-    return result
-  }, [])
-  .sort((a,b) => b.recommendationScore - a.recommendationScore)
-
-  return sortedRecommentedMovies
-}
-
-// 基于电影特征（收藏数据，类型）的协同过滤算法函数 
-const itemCF = async (movieTypes) => {
-
-  // 从数据库中检索与该电影类型相似的其他电影
-  const categories = await Category.find({name: {$in: movieTypes}})
-  const moviesId = Array.from(new Set(...categories.map(category => category.movies)))
-  const movies = await Movie.find({_id: {$in: moviesId}})
-  const newNovies = await Promise.all(movies.map(async movie => {
-    const collection = await MovieCollection.findOne({doubanId: movie.doubanId})
-    return {collectionVotes: collection.collectionVotes, ...movie['_doc']}
-  }))
-
-  // 统计所有相似电影被收藏的次数，并排序
-  const sortedMovies = newNovies.sort((a,b) => b.collectionVotes - a.collectionVotes)
-
-  // 返回相似电影
-  return sortedMovies
-}
-
 
 
 // 计算两个向量之间的余弦相似度
@@ -126,13 +59,12 @@ const cosineSimilarity = (vector1, vector2) => {
 }
 
 
- // 基于用户收藏行为的协同过滤算法函数
+// 基于用户收藏行为的协同过滤算法函数
 const newUserCF = async (userId) => {
   // 获取指定用户的电影收藏列表
   const userCollects = await UserCollection.find({userId})
   if(userCollects.length <= 0) return []
   const userCollectsId = userCollects.map(item => item.doubanId)
-
   // 获取其他用户的收藏情况，并计算相似度
   const similarities = {}
   const allUsers = await User.find({role: 'user'},{_id: 1})
@@ -154,7 +86,6 @@ const newUserCF = async (userId) => {
           [otherUserId]: otherCollectsId.includes(movie.doubanId)
         }
       }
-
       // 计算两个向量之间的余弦相似度，并保存到相似度对象中
       const userVector = userMovieMatrix[userCollects[0].doubanId]
       const otherVector = userMovieMatrix[otherCollects[0].doubanId]
@@ -162,12 +93,8 @@ const newUserCF = async (userId) => {
       similarities[otherUserId] = similarity
     }
   }
-
   // 选出Top10个最近邻用户
-  const nearestNeighbors = Object.keys(similarities)
-                                 .sort((a, b) => similarities[b] - similarities[a])
-                                 .slice(0, 10)
-  
+  const nearestNeighbors = Object.keys(similarities).sort((a, b) => similarities[b] - similarities[a]).slice(0, 10)
   // 根据最近邻用户的相似度和电影收藏热度，计算推荐电影的加权平均数，并返回排名前10的电影ID
   const scores = {}
   for (const movie of movies) {
@@ -175,120 +102,34 @@ const newUserCF = async (userId) => {
     if(!userCollectsId.includes(movie.doubanId)) {
       let weightedSum = 0
       let weightSum = 0
-
       for (const neighbor  of nearestNeighbors) {
         const neighborCollects = await UserCollection.find({userId: neighbor})
         const neighborCollectsId = neighborCollects.map(item => item.doubanId)
-        
         // 只考虑最近邻用户中有收藏该电影的用户
         if(neighborCollectsId.includes(movie.doubanId)) {
           const similarity = similarities[neighbor]
           const {collectionVotes} = await MovieCollection.findOne({doubanId: movie.doubanId})
           // 计算相似度和电影收藏量的加权值
           const weight = similarity * collectionVotes
-
           // 计算加权和
           weightedSum += weight
           // 计算权重和
           weightSum += weight 
         }
       }
-
       if(weightSum > 0) {
         scores[movie.doubanId] = weightedSum / weightSum
       }
     }
   }
-
-  
-   // 根据加权得分从大到小排序
-  const recommendedMoviesId = Object.keys(scores)
-                                   .sort((a, b) => scores[b] - scores[a])
+  // 根据加权得分从大到小排序
+  const recommendedMoviesId = Object.keys(scores).sort((a, b) => scores[b] - scores[a])
   const recommendedMovies = await Movie.find({doubanId: {$in: recommendedMoviesId}})
   return recommendedMovies
 }
 
 
-// 基于电影特征（收藏数据，类型）的协同过滤算法函数 
-// const newItemCF = async (doubanId) => {
-//   // 获取指定电影的类型列表
-//   const { movieTypes } = await Movie.findOne({doubanId}, {movieTypes: 1})
-
-//   // 获取同类型的其他电影，并计算相似度
-//   const similarities = {}
-
-//   // 对于每个类型，获取包含该类型的所有电影
-//   for (const movieType of movieTypes) {
-//     const movies = await Movie.find({movieTypes: {$in: [movieType]}})
-
-//     // 遍历同类型的其他电影
-//     for (const otherMovie  of movies) {
-//       // 不考虑当前选中的电影本身
-//       if(otherMovie.doubanId !== doubanId) {
-//         const userVector = {}
-//         const otherVector = {}
-
-//          // 构建用户-电影收藏矩阵，每个对象键为电影ID，值为1或0，表示该电影是否属于某个类型
-//          for (let movie of movies) {
-//           userVector[movie.doubanId] = Number(movie.doubanId === doubanId || movieTypes.includes(movieType)); // 当前电影和同类型电影标记为1，其它为0
-//           otherVector[movie.doubanId] = Number(movie.doubanId === otherMovie.doubanId || movieTypes.includes(movieType)); // 当前电影和其他同类型电影标记为1，其它为0
-//         }
-
-//          // 计算两个向量之间的余弦相似度，并保存到相似度对象中
-//          const similarity = cosineSimilarity(userVector, otherVector)
-//          similarities[otherMovie.doubanId] = similarity
-//       }
-//     }
-//   }
-
-//   // 根据相似度和电影收藏量，计算推荐电影的加权平均数，并返回排名靠前的电影ID
-//   const scores = {}
-
-//   const movies = await Movie.find({})
-//   // 对于所有电影，计算推荐得分
-//   for (let movie of movies) { 
-//     // 不考虑当前选中的电影本身
-//     if (movie.doubanId !== doubanId) {
-//       let weightedSum = 0
-//       let weightSum = 0
-
-//       // 遍历该电影的类型
-//       for (let movieType of movieTypes) {
-//         const movies = await Movie.find({movieTypes: {$in: [movieType]}})
-
-//         // 遍历同类型的其他电影
-//         for (let otherMovie of movies) {
-//           // 只考虑与目标电影相同的电影
-//           if (otherMovie.doubanId === movie.doubanId) {
-//             const similarity = similarities[otherMovie.doubanId];
-//             // 只考虑与选中电影相似的电影
-//             if (similarity) {
-//               // 计算相似度和电影收藏量的加权值
-//               const weight = similarity * otherMovie.collectCount
-//               weightedSum += weight
-//               weightSum += similarity
-//             }
-//           }
-//         }
-//       }
-
-//       // 如果存在相似的电影，计算加权平均数
-//       if (weightSum > 0) {
-//         scores[movie.doubanId] = weightedSum / weightSum;
-//       }
-//     }
-//   }
-
-//   // 根据加权得分从大到小排序，并返回前K个电影的ID
-//   const recommendedMoviesId = Object.keys(scores)
-//   .sort((a, b) => scores[b] - scores[a])
-
-//   const recommendedMovies = await Movie.find({doubanId: {$in: recommendedMoviesId}})
-//   return recommendedMovies
-// }
-
-
-
+// 基于物品的协同过滤算法函数
 const newItemCF = async (doubanId) => {
   // 获取指定电影的类型列表
   const { movieTypes } = await Movie.findOne({doubanId}, {movieTypes: 1})
@@ -296,7 +137,6 @@ const newItemCF = async (doubanId) => {
   const movies = await Movie.find({movieTypes: {$in: movieTypes}})
   // 获取全部电影类型
   const categories = await Category.find({}, {name: 1})
-
   // 计算同类型电影的相似度
   const similarities = {}
   // 遍历同类型的其他电影
@@ -306,22 +146,18 @@ const newItemCF = async (doubanId) => {
         const userVector = {}
         const otherVector = {}
         const otherMovieTypes = otherMovie.movieTypes
-
         // 构建电影-类型矩阵，每个对象键为类型ID，值为1或0，表示该电影是否属于某个类型
         for (let category of categories) {
           userVector[category.name] = Number(movieTypes.includes(category.name));
           otherVector[category.name] = Number(otherMovieTypes.includes(category.name));
         }
-
         // 计算两个向量之间的余弦相似度，并保存到相似度对象中
         const similarity = cosineSimilarity(userVector, otherVector)
         similarities[otherMovie.doubanId] = similarity
     }
   }
-
   // 根据相似度和电影收藏量，计算推荐电影的加权平均数，并返回排名靠前的电影ID
   const scores = {}
-
   // 对于所有同类型电影，计算推荐得分
   for (let otherMovie of movies) { 
     // 不考虑当前选中的电影本身
@@ -337,20 +173,17 @@ const newItemCF = async (doubanId) => {
         weightedSum += weight
         weightSum += similarity
       }
-
       // 如果存在相似的电影，计算加权平均数
       if (weightSum > 0) {
         scores[otherMovie.doubanId] = weightedSum / weightSum;
       }
     }
   }
-
   // 根据加权得分从大到小排序，并返回前K个电影的ID
   const recommendedMoviesId = Object.keys(scores)
   .sort((a, b) => scores[b] - scores[a])
   .filter(id => id!==doubanId)
-
-  const recommendedMovies = await Movie.find({doubanId: {$in: recommendedMoviesId}})
+  const recommendedMovies = movies.filter(movie => recommendedMoviesId.includes(movie.doubanId))
   return recommendedMovies
 }
 
@@ -358,8 +191,6 @@ const newItemCF = async (doubanId) => {
 module.exports = {
     paginationFun,
     paginationList,
-    userCF,
-    itemCF,
     newUserCF,
     newItemCF
 }

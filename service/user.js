@@ -111,7 +111,7 @@ export const getCollections = async (userId, page, pageSize) => {
 
 
 // 注册用户
-export const reateUser = async (username, password, email) => {
+export const createUser = async (username, password, email) => {
   const user = await User.findOne({$or: [
     {username: username},
     {email: email}
@@ -140,4 +140,28 @@ export const reateUser = async (username, password, email) => {
     success: false,
     message: '新用户注册失败'
   }
+}
+
+
+// 获取用户列表
+export const getAllUsers = async (username, email, status, page, pageSize) => {
+  const query = {}
+  if(username) query.username = {$regex: username}
+  if(email) query.email = email
+  if(status) query.status = Number(status)
+  const {list, currentPage, totalPages, totalData} = await utils.paginationList(User, query, Number(page), Number(pageSize))
+  return {list, currentPage, totalPages, totalData}
+}
+
+
+// 删除用户
+export const delUsers = async (_ids) => {
+  let result = await User.deleteMany({ _id: {$in: [..._ids]} });
+  return result.deletedCount;
+}
+
+// 获取用户总数
+export const getUsersCount = async () => {
+  const count = await User.count()
+  return count
 }

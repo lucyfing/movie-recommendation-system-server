@@ -90,43 +90,6 @@ export const getSingleMovie = async (doubanId) => {
 }
 
 
-// 特定电影下（登录和未登录）推荐电影
-// export const recommendSomeMovies = async (userId, doubanId) => {
-//   let result = []
-
-//   if(userId) {
-//     // 获取基于用户收藏行为的协同过滤算法函数推荐的电影
-//     const otherUserFavorates = await utils.userCF(userId)
-//     if(otherUserFavorates.length >= 10) return otherUserFavorates.slice(0, 10)
-//     result = otherUserFavorates
-//   } 
-
-//   // 根据电影类型推荐收藏最多的电影
-//   const len = result.length
-//   const resultIds = new Set(result.map(movie => movie.doubanId))
-//   if(len>=0 && len<10) {
-//     const {movieTypes} = await Movie.findOne({doubanId}, {movieTypes: 1})
-//     const newNovies = await utils.itemCF(movieTypes)
-
-//     let favoritesId = []
-
-//     if(userId) {
-//       // 获取指定用户的收藏列表
-//       const favorites = await UserCollection.find({userId})
-//       favoritesId = favorites.map((favorite) => favorite.doubanId)
-//     }
-
-//     const sortedMovies = newNovies
-//     .filter((movie) => len===0 || (!resultIds.has(movie.doubanId) && favoritesId.indexOf(movie.doubanId)===-1))
-//     .slice(0, 10)
-
-//     result = [...result, ...sortedMovies.slice(0, sortedMovies.length-len)]
-//   }
-
-//   return result
-// }
-
-
 // 通过协同过滤算法推荐排名最高的前10部电影
 export const recommendSomeMovies = async (userId, doubanId) => {
 
@@ -162,5 +125,50 @@ export const recommendAllMovies = async (userId) => {
   }))
   return recommendedMovies
   
+}
+
+
+// 获取收藏热度最高的10部电影
+export const getHottstMovies = async () => {
+  const favorites = await MovieCollection.find({}, {doubanId: 1, collectionVotes: 1}).sort({collectionVotes: -1}).limit(10)
+  const movies = Promise.all(favorites.map(async(favorite, index) => {
+    const {name, languages, countries} = await Movie.findOne({doubanId: favorite.doubanId})
+    return {
+      name,
+      votes: favorite.collectionVotes,
+      languages,
+      countries,
+      index
+    }
+  }))
+  return movies
+}
+
+
+// 获取电影总数
+export const getMoviesCount = async () => {
+  const count = await Movie.count()
+  return count
+}
+
+
+// 获取地区上映的电影数
+export const getCountryMovies = async (countries) => {
+  // const result = await Movie.aggregate([
+  //   {$unwind: '$countries'},
+  //   {$group: {
+  //     _id: '$countries',
+  //     count: {$sum: 1}
+  //   }}
+  // ])
+  // return result
+  const result = Promise.all(countries.map(async (country) => {
+    const count = await Movie.find({countries: {$in: [country]}})
+    return {
+      country,
+      count: count.length
+    }
+  }))
+  return result
 }
 
