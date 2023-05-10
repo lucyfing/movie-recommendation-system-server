@@ -25,7 +25,8 @@ const {
   getHottstMovies,
   getMoviesCount,
   getCountryMovies,
-  getAllcountry
+  getAllcountry,
+  addMovie
 } = require('../service/movie')
 
 
@@ -160,6 +161,17 @@ export default class userController {
     const result = await getCountryMovies(countries)
     return (ctx.body = {
       result
+    })
+  }
+
+  @post('/addMovie')
+  // 新增电影
+  async addMovie (ctx, next) {
+    const {newMovie} = ctx.request.body
+    const {success, message} = await addMovie(newMovie)
+    return (ctx.body = {
+      success,
+      message
     })
   }
 }

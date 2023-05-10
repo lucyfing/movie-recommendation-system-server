@@ -54,7 +54,7 @@ exports.initMovie = async () => {
         doubanId: item.doubanId
         });
 
-        if(!movie) {
+        if(!movie.length) {
         movie = new Movie(item);
         await movie.save();
         }

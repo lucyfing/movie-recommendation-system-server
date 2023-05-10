@@ -154,14 +154,6 @@ export const getMoviesCount = async () => {
 
 // 获取地区上映的电影数
 export const getCountryMovies = async (countries) => {
-  // const result = await Movie.aggregate([
-  //   {$unwind: '$countries'},
-  //   {$group: {
-  //     _id: '$countries',
-  //     count: {$sum: 1}
-  //   }}
-  // ])
-  // return result
   const result = Promise.all(countries.map(async (country) => {
     const count = await Movie.find({countries: {$in: [country]}})
     return {
@@ -170,5 +162,23 @@ export const getCountryMovies = async (countries) => {
     }
   }))
   return result
+}
+
+
+// 新增电影
+export const addMovie = async (newMovie) => {
+  let movie = await Movie.find({doubanId: newMovie.doubanId})
+  if(!movie.length) {
+    movie = new Movie(newMovie)
+    await movie.save()
+    return {
+      success: true,
+      message: '电影新增成功'
+    }
+  }
+  return {
+    success: false,
+    message: '电影已存在'
+  }
 }
 
