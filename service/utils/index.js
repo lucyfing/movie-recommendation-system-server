@@ -48,8 +48,6 @@ const paginationList = async (schema, query, page, pageSize) => {
   }
 }
 
-
-
 // 计算两个向量之间的余弦相似度
 const cosineSimilarity = (vector1, vector2) => {
   const dotProduct = Object.keys(vector1).reduce((acc, movie) => acc + (vector1[movie] * vector2[movie]) , 0);
@@ -57,7 +55,6 @@ const cosineSimilarity = (vector1, vector2) => {
   const magnitude2 = Math.sqrt(Object.values(vector2).reduce((acc, val) => acc + val * val, 0));
   return dotProduct / (magnitude1 * magnitude2);
 }
-
 
 // 基于用户收藏行为的协同过滤算法函数
 const newUserCF = async (userId) => {
@@ -67,10 +64,12 @@ const newUserCF = async (userId) => {
   const userCollectsId = userCollects.map(item => item.doubanId)
   // 获取其他用户的收藏情况，并计算相似度
   const similarities = {}
-  const allUsers = await User.find({role: 'user'},{_id: 1})
+  // const allUsers = await User.find({role: 'user'},{_id: 1})
+  const allUsers = await UserCollection.find({doubanId: {$in: userCollectsId}}, {userId:1})
   const movies = await Movie.find({})
   for (let otherUser of allUsers) {
-    const otherUserId = otherUser._id
+    // const otherUserId = otherUser._id
+    const otherUserId = otherUser.userId
     if(otherUserId !== userId) {
       const otherCollects = await UserCollection.find({userId: otherUserId})
       if(otherCollects.length <= 0) {
@@ -186,7 +185,6 @@ const newItemCF = async (doubanId) => {
   const recommendedMovies = movies.filter(movie => recommendedMoviesId.includes(movie.doubanId))
   return recommendedMovies
 }
-
 
 module.exports = {
     paginationFun,

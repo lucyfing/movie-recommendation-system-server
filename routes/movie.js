@@ -12,6 +12,11 @@ const {
     recommendAllMovies
 } = require('../service/movie')
 
+const {
+    getRedis,
+    setRedis
+} = require('../service/utils/redis')
+
 @controller('/movies')
 export default class MovieController {
     @get('/')
@@ -69,20 +74,34 @@ export default class MovieController {
     }
 
     @post('/recommendMovies')
-    // 推荐电影
+    // 详情推荐
     async recommendSomeMovies (ctx, next) {
         const {_id, doubanId} = ctx.request.body
-        const movies = await recommendSomeMovies(_id, doubanId)
+        let movies
+        if(_id) {
+            movies = await getRedis(_id)
+            movies = movies.slice(0, 10)
+        }
+        else {
+            movies = await recommendSomeMovies(_id, doubanId)
+        }
         return (ctx.body = {
             movies
         })
     }
 
     @post('/recommendAllMovies')
-    // 推荐全部电影
+    // 个性化推荐
     async recommendAllMovies (ctx, next) {
         const {_id} = ctx.request.body
+        if(_id) {
+            const movies = await getRedis(_id)
+            if(movies) {
+                return (ctx.body = {movies})
+            }
+        }
         const movies = await recommendAllMovies(_id)
+        if(_id) setRedis(_id, movies)
         return (ctx.body = {
             movies
         })

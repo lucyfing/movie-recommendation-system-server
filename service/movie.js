@@ -1,3 +1,5 @@
+import { createContext } from 'vm'
+
 // 处理电影信息的操作，直接与数据库进行交互
 const redis = require('redis')
 const { promisify } = require('util')
@@ -90,7 +92,7 @@ export const getSingleMovie = async (doubanId) => {
 }
 
 
-// 通过协同过滤算法推荐排名最高的前10部电影
+// 详情推荐，通过协同过滤算法推荐排名最高的前10部电影
 export const recommendSomeMovies = async (userId, doubanId) => {
 
   // 用户登录，根据用户收藏行为进行推荐
@@ -106,9 +108,8 @@ export const recommendSomeMovies = async (userId, doubanId) => {
 
 
 
-// 通过协同过滤算法推荐所有符合条件的电影
+// 个性化推荐，通过协同过滤算法推荐所有符合条件的50部电影
 export const recommendAllMovies = async (userId) => {
-
   // 用户登录
   if(userId) {
     // 获取基于用户收藏行为的协同过滤算法函数推荐的电影

@@ -1,3 +1,5 @@
+import { recommendAllMovies } from '../service/movie'
+
 const mongoose = require('mongoose')
 const path = require('path')
 const fs = require('fs')
@@ -16,15 +18,19 @@ const {
     getCollections,
     createUser
 } = require('../service/user')
+const {
+  getRedis,
+  setRedis
+} = require('../service/utils/redis')
 
 @controller('/user')
 export default class userController {
+
   @post('/login')
+  // 登录
   async login (ctx, next) {
     const { email, password } = ctx.request.body
-    console.log(1111)
     const matchData = await checkPassword(email, password)
-    console.log(222)
     if (!matchData.user) {
         return (ctx.body = {
           success: false,
@@ -46,6 +52,7 @@ export default class userController {
   }
 
   @post('/updateUser')
+  // 更新用户基本信息
   async updateUser (ctx, next) {
     const {_id, username, avatar, description} = ctx.request.body
     const user = await updateUser(_id, username, avatar, description)
@@ -80,6 +87,7 @@ export default class userController {
 
 
   @post('/updatePwd')
+  // 更新密码
   async updatePassword (ctx, next) {
     let {email, password, newPassword} = ctx.request.body
     const {success} = await updatePwd(email, password, newPassword)
@@ -101,6 +109,8 @@ export default class userController {
   async updateCollection (ctx, next) {
     const {_id, doubanId, collection} = ctx.request.body
     const {collectionUser, collectionVotes} = await userMovies(_id, doubanId, collection)
+    const movies = await recommendAllMovies(_id)
+    setRedis(_id, movies)
     return (ctx.body = {
       collectionUser,
       collectionVotes
@@ -109,7 +119,7 @@ export default class userController {
 
 
   @post('/myCollections')
-  // 收藏列表
+  // 获取收藏列表
   async getCollectionList (ctx, next) {
     const {_id, page, pageSize} = ctx.request.body
     const {list, currentPage, totalPages, totalData} = await getCollections(_id, page, pageSize)
@@ -122,7 +132,7 @@ export default class userController {
   }
 
   @post('/createUser')
-  // 新建用户
+  // 注册用户
   async createNewUser (ctx, next) {
     const {username, password, email} = ctx.request.body
     const {success, message} = await createUser(username, password, email)
